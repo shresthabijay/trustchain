@@ -5,7 +5,7 @@ let wallet = new Wallet();
 
 class Blockchain {
   constructor() {
-    this.networkNodes = ['http://192.168.1.119:7000'];
+    this.networkNodes = ['http://192.168.1.100:7000'];
 
     this.chain = [
       {

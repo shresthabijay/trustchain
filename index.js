@@ -21,6 +21,10 @@ app.get('/pending', (req, res) => {
   res.json(trustchain.pendingTransactions);
 });
 
+app.get('/peers', (req, res) => {
+  res.json(trustchain.networkNodesn);
+});
+
 app.post('/transaction/broadcast', (req, res) => {
   const transaction = trustchain.createNewTransaction(
     req.body.amount,
@@ -204,7 +208,7 @@ app.post('/register-node-bulk', (req, res) => {
   });
 });
 
-if (port != 7000) {
+if (myURL != trustchain.networkNodes[0]) {
   axios
     .post(trustchain.networkNodes[0] + '/register-and-broadcast-node', {
       newNodeURL: myURL
