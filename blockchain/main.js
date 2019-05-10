@@ -1,4 +1,7 @@
 const sha256 = require('js-sha256');
+const uuid = require('uuid/v1');
+const Wallet = require('../Wallet.js');
+let wallet = new Wallet();
 
 class Blockchain {
   constructor() {
@@ -7,10 +10,10 @@ class Blockchain {
       {
         timeStamp: Date.now(),
         index: 0,
-        nonce: '0000',
+        nonce: 200,
         transactions: [],
-        previousBlockHash: '',
-        hash: ''
+        previousBlockHash: '0000',
+        hash: '0000'
       }
     ];
 
@@ -30,20 +33,50 @@ class Blockchain {
       return newBlock;
     };
 
-    this.createNewTransaction = (amount, data, recipient, sender) => {
+    this.createNewTransaction = (
+      amount,
+      data,
+      recipient,
+      sender,
+      signature
+    ) => {
       const newTransaction = {
         amount: amount,
         sender: sender,
         recipient: recipient,
-        data: data
+        data: data,
+        transactionId: uuid()
+          .split('-')
+          .join(''),
+        signature: signature,
+        timeStamp: Date.now()
       };
 
       return newTransaction;
     };
 
-    this.commitTransaction = transaction => {
-      this.pendingTransactions.push(transaction);
-      return this.getPreviousBlock().index + 1;
+    this.commitTransaction = async transaction => {
+      try {
+        let data =
+          typeof transaction.data == 'object'
+            ? JSON.stringify(transaction.data)
+            : transaction.data;
+
+        let isValidSignature = await wallet.verifySignature(
+          data,
+          transaction.sender,
+          transaction.signature
+        );
+
+        if (isValidSignature) {
+          this.pendingTransactions.push(transaction);
+          return this.getPreviousBlock().index + 1;
+        }
+
+        return false;
+      } catch (err) {
+        return false;
+      }
     };
 
     this.getPreviousBlock = () => {
@@ -60,13 +93,49 @@ class Blockchain {
       let nonce = 0;
       let hash = this.hashBlock(currentBlockHash, currentBlockData, nonce);
 
-      while (hash.substring(0, 4) !== '0000') {
-        console.log(hash);
+      while (hash.substring(0, 2) !== '00') {
         nonce++;
         hash = this.hashBlock(currentBlockHash, currentBlockData, nonce);
       }
 
       return nonce;
+    };
+
+    this.isChainValid = chain => {
+      let validChain = false;
+
+      for (let x = 1; x < chain.length - 1; x++) {
+        const currentBlock = chain[i];
+        const previousBlock = chain[i - 1];
+        const blockhash = this.hashBlock(
+          previousBlock.hash,
+          currentBlock.transactions,
+          currentBlock.nonce
+        );
+        if (!blockhash.substring(0, 2) == '00') {
+          return false;
+        }
+        if (previousBlock.hash !== currentBlock.previousBlockHash) {
+          return false;
+        }
+      }
+
+      const genesisBlock = chain[0];
+      const isGenesisNonceCorrect = genesisBlock.nonce === 200;
+      const isGenisisPrevHashCorrect =
+        genesisBlock.previousBlockHash === '0000';
+      const isGenisisHashCorrect = genesisBlock.hash === '0000';
+      const isGenesisTransactionsCorrect =
+        genesisBlock.transactions.length === 0;
+
+      if (
+        isGenesisNonceCorrect &&
+        isGenesisTransactionsCorrect &&
+        isGenisisHashCorrect &&
+        isGenisisPrevHashCorrect
+      ) {
+        return true;
+      }
     };
   }
 }

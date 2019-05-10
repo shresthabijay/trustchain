@@ -3,13 +3,14 @@ const BlockChain = require('./blockchain/main');
 let trustchain = new BlockChain();
 const axios = require('axios');
 
-let port = 7002;
+let port = 7000;
+
 app.listen(port, () => {
   console.log('Listening on port ' + port + '!');
 });
 
 app.get('/trustchain', (req, res) => {
-  res.json(trustchain);
+  res.json(trustchain.chain);
 });
 
 app.post('/transaction/broadcast', (req, res) => {
@@ -17,13 +18,16 @@ app.post('/transaction/broadcast', (req, res) => {
     req.body.amount,
     req.body.data,
     req.body.recipient,
-    req.body.sender
+    req.body.sender,
+    req.body.signature
   );
 
   trustchain.networkNodes.forEach(nodeURL => {
-    axios.post(nodeURL + '/transaction', {
-      transaction
-    });
+    axios
+      .post(nodeURL + '/transaction', {
+        transaction
+      })
+      .catch(() => {});
   });
 
   res.json({
@@ -31,12 +35,28 @@ app.post('/transaction/broadcast', (req, res) => {
   });
 });
 
-app.post('/transaction', (req, res) => {
-  const blockIndex = trustchain.commitTransaction(req.body.transaction);
+app.post('/transaction', async (req, res) => {
+  try {
+    const blockIndex = await trustchain.commitTransaction(req.body.transaction);
 
-  res.json({
-    msg: `Transaction will be added to block ${blockIndex}.`
-  });
+    if (blockIndex === false) {
+      console.log('rejected');
+
+      res.status(400).json({
+        msg: 'Transaction signature is invalid!'
+      });
+
+      return;
+    }
+
+    res.json({
+      msg: `Transaction will be added to block ${blockIndex}.`
+    });
+  } catch (err) {
+    res.status(400).json({
+      msg: 'Transaction signature is invalid!'
+    });
+  }
 });
 
 app.get('/mine', (req, res) => {
@@ -45,13 +65,95 @@ app.get('/mine', (req, res) => {
   let currentData = trustchain.pendingTransactions;
   let nonce = trustchain.proofOFWork(previousHash, currentData);
   let hash = trustchain.hashBlock(previousHash, currentData, nonce);
-
   let newBlock = trustchain.createNewBlock(nonce, previousHash, hash);
+
+  trustchain.networkNodes.forEach(nodeURL => {
+    axios
+      .post(nodeURL + '/recieve-new-block', {
+        newBlock
+      })
+      .catch(err => {
+        console.log(err.data);
+      });
+  });
+
+  //for mining rewards
+
+  // trustchain.networkNodes.forEach(nodeURL => {
+  //   axios.post(nodeURL + '/transaction/broadcast', {
+  //     newBlock
+  //   });
+  // });
 
   res.status(200).json({
     message: 'New block successfully created!',
     block: newBlock
   });
+});
+
+app.post('/recieve-new-block', (req, res) => {
+  let newBlock = req.body.newBlock;
+  let previousBlock = trustchain.getPreviousBlock();
+  let isHashCorrect = previousBlock.hash === newBlock.previousBlockHash;
+  let isCorrectIndex = previousBlock.index + 1 === newBlock.index;
+
+  if (isHashCorrect && isCorrectIndex) {
+    trustchain.chain.push(newBlock);
+    trustchain.pendingTransactions = [];
+    res.status(200).json({
+      msg: 'New block accepted and added to the chain!',
+      newBlock,
+      previousBlock
+    });
+  } else {
+    res.status(400).json({
+      msg: 'New block rejected!',
+      newBlock,
+      previousBlock
+    });
+  }
+});
+
+app.get('/consensus', async (req, res) => {
+  let currentChainLength = trustchain.chain.length;
+  let maxChainLength = currentChainLength;
+  let newLongestChain = null;
+  let newPendingTransactions = null;
+
+  for (let i = 0; i < trustchain.networkNodes.length - 1; i++) {
+    let nodeURL = trustchain.networkNodes[i];
+
+    try {
+      let { data: chain } = await axios.get(nodeURL + '/trustchain');
+      console.log(chain, 'data');
+
+      if (chain.length >= maxChainLength) {
+        newLongestChain = chain;
+        newPendingTransactions = chain.pendingTransactions;
+      }
+    } catch (err) {}
+  }
+
+  console.log(newLongestChain, 'asdasd');
+
+  if (
+    !newLongestChain ||
+    (newLongestChain && !trustchain.isChainValid(newLongestChain))
+  ) {
+    res.json({
+      msg: 'The chain has not been replaced!',
+      chain: trustchain.chain
+    });
+  }
+
+  if (newLongestChain && trustchain.isChainValid(newLongestChain)) {
+    trustchain.chain = newLongestChain;
+    trustchain.pendingTransactions = newPendingTransactions;
+    res.json({
+      msg: 'The chain has been replaced!',
+      chain: trustchain.chain
+    });
+  }
 });
 
 app.post('/register-and-broadcast-node', (req, res) => {
@@ -94,7 +196,7 @@ app.post('/register-node', (req, res) => {
 
 app.post('/register-node-bulk', (req, res) => {
   trustchain.networkNodes = req.body.networkNodes;
-
+  axios.get('http://localhost:' + port + '/consensus');
   res.json({
     msg: `New nodes were added to the network.`
   });
@@ -105,7 +207,5 @@ if (port != 7000) {
     .post(trustchain.networkNodes[0] + '/register-and-broadcast-node', {
       newNodeURL: 'http://localhost:' + port
     })
-    .then(data => {
-      console.log(data.data);
-    });
+    .then(data => {});
 }
