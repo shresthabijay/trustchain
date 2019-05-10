@@ -2,6 +2,7 @@ const sha256 = require('js-sha256');
 
 class Blockchain {
   constructor() {
+    this.networkNodes = ['http://localhost:7000'];
     this.chain = [
       {
         timeStamp: Date.now(),

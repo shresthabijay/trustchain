@@ -1,9 +1,11 @@
 const app = require('./app');
 const BlockChain = require('./blockchain/main');
 let trustchain = new BlockChain();
+const axios = require('axios');
 
-app.listen(7000, () => {
-  console.log('Listening on port 7000!');
+let port = 7002;
+app.listen(port, () => {
+  console.log('Listening on port ' + port + '!');
 });
 
 app.get('/blockchain', (req, res) => {
@@ -22,6 +24,7 @@ app.post('/transaction', (req, res) => {
     msg: `Transaction will be added to block ${blockIndex}.`
   });
 });
+
 app.get('/mine', (req, res) => {
   let lastBlock = trustchain.getPreviousBlock();
   let previousHash = lastBlock.hash;
@@ -37,4 +40,66 @@ app.get('/mine', (req, res) => {
   });
 });
 
-console.log(trustchain.chain);
+app.post('/register-and-broadcast-node', (req, res) => {
+  const newNodeURL = req.body.newNodeURL;
+
+  let promises = [];
+
+  if (trustchain.networkNodes.indexOf(newNodeURL) === -1) {
+    trustchain.networkNodes.push(newNodeURL);
+  }
+
+  trustchain.networkNodes.forEach(nodeURL => {
+    promises.push(
+      axios.post(nodeURL + '/register-node', {
+        newNodeURL
+      })
+    );
+  });
+
+  Promise.all(promises).then(data => {
+    axios
+      .post(newNodeURL + '/register-node-bulk', {
+        networkNodes: trustchain.networkNodes
+      })
+      .then(data => {
+        res.json({
+          msg: `New Node ${newNodeURL} was added to the network.`
+        });
+      });
+  });
+});
+
+app.post('/register-node', (req, res) => {
+  const newNodeURL = req.body.newNodeURL;
+
+  if (trustchain.networkNodes.indexOf(newNodeURL) === -1) {
+    trustchain.networkNodes.push(newNodeURL);
+  }
+
+  res.json({
+    msg: `New Node ${newNodeURL} was added to the network.`
+  });
+});
+
+app.post('/register-node-bulk', (req, res) => {
+  trustchain.networkNodes = req.body.networkNodes;
+
+  res.json({
+    msg: `New nodes were added to the network.`
+  });
+});
+
+if (port != 7000) {
+  axios
+    .post(trustchain.networkNodes[0] + '/register-and-broadcast-node', {
+      newNodeURL: 'http://localhost:' + port
+    })
+    .then(data => {
+      console.log(data.data);
+    });
+}
+
+setInterval(() => {
+  console.log(trustchain.networkNodes);
+}, 500);
