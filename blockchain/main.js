@@ -38,8 +38,11 @@ class Blockchain {
         data: data
       };
 
-      this.pendingTransactions.push(newTransaction);
-      console.log(this.pendingTransactions);
+      return newTransaction;
+    };
+
+    this.commitTransaction = transaction => {
+      this.pendingTransactions.push(transaction);
       return this.getPreviousBlock().index + 1;
     };
 

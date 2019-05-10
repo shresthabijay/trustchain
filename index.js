@@ -8,17 +8,31 @@ app.listen(port, () => {
   console.log('Listening on port ' + port + '!');
 });
 
-app.get('/blockchain', (req, res) => {
+app.get('/trustchain', (req, res) => {
   res.json(trustchain);
 });
 
-app.post('/transaction', (req, res) => {
-  const blockIndex = trustchain.createNewTransaction(
+app.post('/transaction/broadcast', (req, res) => {
+  const transaction = trustchain.createNewTransaction(
     req.body.amount,
     req.body.data,
     req.body.recipient,
     req.body.sender
   );
+
+  trustchain.networkNodes.forEach(nodeURL => {
+    axios.post(nodeURL + '/transaction', {
+      transaction
+    });
+  });
+
+  res.json({
+    msg: `Transaction was broadcasted.`
+  });
+});
+
+app.post('/transaction', (req, res) => {
+  const blockIndex = trustchain.commitTransaction(req.body.transaction);
 
   res.json({
     msg: `Transaction will be added to block ${blockIndex}.`
@@ -50,24 +64,20 @@ app.post('/register-and-broadcast-node', (req, res) => {
   }
 
   trustchain.networkNodes.forEach(nodeURL => {
-    promises.push(
-      axios.post(nodeURL + '/register-node', {
-        newNodeURL
-      })
-    );
+    axios.post(nodeURL + '/register-node', {
+      newNodeURL
+    });
   });
 
-  Promise.all(promises).then(data => {
-    axios
-      .post(newNodeURL + '/register-node-bulk', {
-        networkNodes: trustchain.networkNodes
-      })
-      .then(data => {
-        res.json({
-          msg: `New Node ${newNodeURL} was added to the network.`
-        });
+  axios
+    .post(newNodeURL + '/register-node-bulk', {
+      networkNodes: trustchain.networkNodes
+    })
+    .then(data => {
+      res.json({
+        msg: `New Node ${newNodeURL} was added to the network.`
       });
-  });
+    });
 });
 
 app.post('/register-node', (req, res) => {
@@ -99,7 +109,3 @@ if (port != 7000) {
       console.log(data.data);
     });
 }
-
-setInterval(() => {
-  console.log(trustchain.networkNodes);
-}, 500);
