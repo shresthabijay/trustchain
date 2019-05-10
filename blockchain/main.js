@@ -5,7 +5,8 @@ let wallet = new Wallet();
 
 class Blockchain {
   constructor() {
-    this.networkNodes = ['http://localhost:7000'];
+    this.networkNodes = ['http://192.168.1.119:7000'];
+
     this.chain = [
       {
         timeStamp: Date.now(),
@@ -68,12 +69,13 @@ class Blockchain {
           transaction.signature
         );
 
-        if (isValidSignature) {
+        if (isValidSignature === true) {
           this.pendingTransactions.push(transaction);
-          return this.getPreviousBlock().index + 1;
-        }
 
-        return false;
+          return this.getPreviousBlock().index + 1;
+        } else {
+          return false;
+        }
       } catch (err) {
         return false;
       }
@@ -104,7 +106,7 @@ class Blockchain {
     this.isChainValid = chain => {
       let validChain = false;
 
-      for (let x = 1; x < chain.length - 1; x++) {
+      for (let i = 1; i < chain.length - 1; i++) {
         const currentBlock = chain[i];
         const previousBlock = chain[i - 1];
         const blockhash = this.hashBlock(

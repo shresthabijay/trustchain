@@ -2,8 +2,12 @@ const app = require('./app');
 const BlockChain = require('./blockchain/main');
 let trustchain = new BlockChain();
 const axios = require('axios');
+const ip = require('ip');
+const myIP = ip.address();
 
 let port = 7000;
+
+let myURL = 'http://' + myIP + ':' + port;
 
 app.listen(port, () => {
   console.log('Listening on port ' + port + '!');
@@ -11,6 +15,10 @@ app.listen(port, () => {
 
 app.get('/trustchain', (req, res) => {
   res.json(trustchain.chain);
+});
+
+app.get('/pending', (req, res) => {
+  res.json(trustchain.pendingTransactions);
 });
 
 app.post('/transaction/broadcast', (req, res) => {
@@ -38,10 +46,7 @@ app.post('/transaction/broadcast', (req, res) => {
 app.post('/transaction', async (req, res) => {
   try {
     const blockIndex = await trustchain.commitTransaction(req.body.transaction);
-
-    if (blockIndex === false) {
-      console.log('rejected');
-
+    if (blockIndex == false) {
       res.status(400).json({
         msg: 'Transaction signature is invalid!'
       });
@@ -118,23 +123,20 @@ app.get('/consensus', async (req, res) => {
   let currentChainLength = trustchain.chain.length;
   let maxChainLength = currentChainLength;
   let newLongestChain = null;
-  let newPendingTransactions = null;
+  let newPendingTransactions = [];
 
   for (let i = 0; i < trustchain.networkNodes.length - 1; i++) {
     let nodeURL = trustchain.networkNodes[i];
 
     try {
       let { data: chain } = await axios.get(nodeURL + '/trustchain');
-      console.log(chain, 'data');
 
-      if (chain.length >= maxChainLength) {
+      if (chain.length > maxChainLength) {
         newLongestChain = chain;
         newPendingTransactions = chain.pendingTransactions;
       }
     } catch (err) {}
   }
-
-  console.log(newLongestChain, 'asdasd');
 
   if (
     !newLongestChain ||
@@ -196,7 +198,7 @@ app.post('/register-node', (req, res) => {
 
 app.post('/register-node-bulk', (req, res) => {
   trustchain.networkNodes = req.body.networkNodes;
-  axios.get('http://localhost:' + port + '/consensus');
+  axios.get(myURL + '/consensus');
   res.json({
     msg: `New nodes were added to the network.`
   });
@@ -205,7 +207,7 @@ app.post('/register-node-bulk', (req, res) => {
 if (port != 7000) {
   axios
     .post(trustchain.networkNodes[0] + '/register-and-broadcast-node', {
-      newNodeURL: 'http://localhost:' + port
+      newNodeURL: myURL
     })
     .then(data => {});
 }
