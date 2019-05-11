@@ -9,4 +9,6 @@ app.use(
   })
 );
 
+app.use(require('cors')());
+
 module.exports = app;

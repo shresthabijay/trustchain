@@ -92,6 +92,8 @@ app.get('/mine', (req, res) => {
     return { transactionId: data.transactionId, recipient: data.recipient };
   });
 
+  console.log(newBlock.index);
+
   axios
     .post(centralServerIP + '/attach', {
       transactions: filteredTransactions,
@@ -242,6 +244,31 @@ app.post('/addListner', (req, res) => {
   res.json({
     msg: 'listener added'
   });
+});
+
+app.post('/getTransaction', (req, res) => {
+  let blockIndex = parseInt(req.body.blockIndex);
+  let transactionId = req.body.transactionId;
+
+  try {
+    let transaction = trustchain.chain[blockIndex].transactions.find(data => {
+      return transactionId === data.transactionId;
+    });
+    if (transaction) {
+      res.json({
+        transaction,
+        msg: 'Transacion Found'
+      });
+    } else {
+      res.json({
+        msg: 'Transaction not found'
+      });
+    }
+  } catch (err) {
+    res.json({
+      msg: 'Transaction not found'
+    });
+  }
 });
 
 if (myURL != trustchain.networkNodes[0]) {
