@@ -74,6 +74,13 @@ app.post('/transaction', async (req, res) => {
 });
 
 app.get('/mine', (req, res) => {
+  if (trustchain.pendingTransactions.length === 0) {
+    res.json({
+      msg: 'No pending transactions to mine!'
+    });
+    return;
+  }
+
   let lastBlock = trustchain.getPreviousBlock();
   let previousHash = lastBlock.hash;
   let currentData = trustchain.pendingTransactions;
@@ -81,18 +88,12 @@ app.get('/mine', (req, res) => {
   let hash = trustchain.hashBlock(previousHash, currentData, nonce);
   let newBlock = trustchain.createNewBlock(nonce, previousHash, hash);
 
-  if (trustchain.pendingTransactions.length === 0) {
-    res.json({
-      msg: 'No pending transactions to mine!'
-    });
-  }
-
   let filteredTransactions = newBlock.transactions.map(data => {
     return { transactionId: data.transactionId, recipient: data.recipient };
   });
 
   axios
-    .post(centralServerIP + '/attached', {
+    .post(centralServerIP + '/attach', {
       transactions: filteredTransactions,
       blockIndex: newBlock.index
     })
