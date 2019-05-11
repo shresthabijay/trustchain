@@ -4,6 +4,8 @@ let trustchain = new BlockChain();
 const axios = require('axios');
 const ip = require('ip');
 const myIP = ip.address();
+let listenerEndpoints = [];
+let centralServerIP = 'http://192.168.1.100:3000';
 
 let port = 7000;
 
@@ -22,7 +24,7 @@ app.get('/pending', (req, res) => {
 });
 
 app.get('/peers', (req, res) => {
-  res.json(trustchain.networkNodesn);
+  res.json(trustchain.networkNodes);
 });
 
 app.post('/transaction/broadcast', (req, res) => {
@@ -43,6 +45,8 @@ app.post('/transaction/broadcast', (req, res) => {
   });
 
   res.json({
+    transactionId: transaction.transactionId,
+    nextBlockId: trustchain.getPreviousBlock().index + 1,
     msg: `Transaction was broadcasted.`
   });
 });
@@ -75,6 +79,23 @@ app.get('/mine', (req, res) => {
   let nonce = trustchain.proofOFWork(previousHash, currentData);
   let hash = trustchain.hashBlock(previousHash, currentData, nonce);
   let newBlock = trustchain.createNewBlock(nonce, previousHash, hash);
+
+  if (trustchain.pendingTransactions.length === 0) {
+    res.json({
+      msg: 'No pending transactions to mine!'
+    });
+  }
+
+  let filteredTransactions = newBlock.transactions.map(data => {
+    return { transactionId: data.transactionId, recipient: data.recipient };
+  });
+
+  axios
+    .post(centralServerIP + '/attached', {
+      transactions: filteredTransactions,
+      blockIndex: newBlock.index
+    })
+    .catch(err => {});
 
   trustchain.networkNodes.forEach(nodeURL => {
     axios
@@ -205,6 +226,19 @@ app.post('/register-node-bulk', (req, res) => {
   axios.get(myURL + '/consensus');
   res.json({
     msg: `New nodes were added to the network.`
+  });
+});
+
+app.post('/getblock', async (req, res) => {
+  let blockIndex = parseInt(rew.body.blockIndex);
+  await axios.get(myURL + '/consensus');
+  return trustchain.chain[blockIndex];
+});
+
+app.post('/addListner', (req, res) => {
+  listenerEndpoints.push(rew.body.endpoint);
+  res.json({
+    msg: 'listener added'
   });
 });
 
