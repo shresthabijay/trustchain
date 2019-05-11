@@ -5,7 +5,7 @@ const axios = require('axios');
 const ip = require('ip');
 const myIP = ip.address();
 let listenerEndpoints = [];
-let centralServerIP = 'http://192.168.1.100:3000';
+let centralServerIP = 'http://192.168.86.51:3000';
 
 let port = 7000;
 

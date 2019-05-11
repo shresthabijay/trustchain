@@ -5,7 +5,7 @@ let wallet = new Wallet();
 
 class Blockchain {
   constructor() {
-    this.networkNodes = ['http://192.168.1.127:7000'];
+    this.networkNodes = ['http://192.168.86.54:7000'];
     this.chain = [
       {
         timeStamp: Date.now(),
@@ -57,10 +57,10 @@ class Blockchain {
 
     this.commitTransaction = async transaction => {
       try {
-        let data =
-          typeof transaction.data == 'object'
-            ? JSON.stringify(transaction.data)
-            : transaction.data;
+        let data = 1;
+        typeof transaction.data == 'object'
+          ? JSON.stringify(transaction.data)
+          : transaction.data;
 
         let isValidSignature = await wallet.verifySignature(
           data,
