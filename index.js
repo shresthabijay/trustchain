@@ -261,11 +261,13 @@ app.post('/getTransaction', (req, res) => {
       });
     } else {
       res.json({
+        err: '1',
         msg: 'Transaction not found'
       });
     }
   } catch (err) {
     res.json({
+      err: '1',
       msg: 'Transaction not found'
     });
   }
