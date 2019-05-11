@@ -54,6 +54,7 @@ app.post('/transaction/broadcast', (req, res) => {
 app.post('/transaction', async (req, res) => {
   try {
     const blockIndex = await trustchain.commitTransaction(req.body.transaction);
+    console.log(blockIndex);
     if (blockIndex == false) {
       res.status(400).json({
         msg: 'Transaction signature is invalid!'

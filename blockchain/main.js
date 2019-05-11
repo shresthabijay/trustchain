@@ -57,11 +57,12 @@ class Blockchain {
 
     this.commitTransaction = async transaction => {
       try {
-        let data = 1;
-        typeof transaction.data == 'object'
-          ? JSON.stringify(transaction.data)
-          : transaction.data;
+        let data =
+          typeof transaction.data == 'object'
+            ? JSON.stringify(transaction.data)
+            : transaction.data;
 
+        console.log(transaction);
         let isValidSignature = await wallet.verifySignature(
           data,
           transaction.sender,
