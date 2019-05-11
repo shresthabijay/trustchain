@@ -7,7 +7,7 @@ const myIP = ip.address();
 let listenerEndpoints = [];
 let centralServerIP = 'http://192.168.86.51:3000';
 
-let port = 7000;
+let port = 7003;
 
 let myURL = 'http://' + myIP + ':' + port;
 
@@ -197,9 +197,11 @@ app.post('/register-and-broadcast-node', (req, res) => {
   }
 
   trustchain.networkNodes.forEach(nodeURL => {
-    axios.post(nodeURL + '/register-node', {
-      newNodeURL
-    });
+    axios
+      .post(nodeURL + '/register-node', {
+        newNodeURL
+      })
+      .catch(err => {});
   });
 
   axios

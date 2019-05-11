@@ -62,7 +62,6 @@ class Blockchain {
             ? JSON.stringify(transaction.data)
             : transaction.data;
 
-        console.log(transaction);
         let isValidSignature = await wallet.verifySignature(
           data,
           transaction.sender,
